@@ -14,6 +14,9 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::middleware('auth:api')->get('/user', function (Request $request) {
-    return $request->user();
+Route::group(['prefix' => 'events'], function () {
+    Route::get('/', [App\Http\Controllers\EventController::class, 'index'])->name('events.index');
+    Route::post('/', [App\Http\Controllers\EventController::class, 'store'])->name('events.store');
 });
+
+
