@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use DB;
 use Throwable;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
@@ -22,15 +23,14 @@ class EventController extends Controller
     public function index(Request $request)
     {
         $data = $request->only(['month', 'year']);
-        $date = \Carbon\Carbon::parse($data['year']."-".$data['month']."-01");
+        $date = Carbon::parse($data['year']."-".$data['month']."-01");
         $start = $date->startOfMonth()->format('Y-m-d H:i:s');
-        $end = $date->endOfMonth()->format('Y-m-d H:i:s');
 
         return $this->events
-            ->where('start_date', '>=', $start)
-            ->where('end_date', '<=', $end)
+            ->where('start_date', '<=', $start)
+            ->where('end_date', '>=', $start)
+            ->with('days')
             ->get();
-
     }
 
     /**
@@ -45,27 +45,31 @@ class EventController extends Controller
            'event_name', 'start_date', 'end_date'
         ]);
 
+        $selectedDays = $request->input('selected_days');
+
         DB::beginTransaction();
 
         try {
 
             $eventNameExists = $this->events->whereEventName($data['event_name'])->first();
             $eventByDates = $this->events
-                ->where('start_date', '>=', $data['start_date'])
-                ->where('end_date', '<=', $data['end_date'])
+                ->where('start_date', '>=', Carbon::parse($data['start_date'])->format('Y-m-d'))
+                ->where('end_date', '<=', Carbon::parse($data['end_date'])->format('Y-m-d'))
                 ->first();
 
             if ($eventNameExists) {
-                $this->deleteAndCreateEvent($eventNameExists, $data);
+                $event = $this->deleteAndCreateEvent($eventNameExists, $data, $selectedDays);
             } else if ($eventByDates){
-                $this->deleteAndCreateEvent($eventByDates, $data);
+                $event = $this->deleteAndCreateEvent($eventByDates, $data, $selectedDays);
             } else {
-                $this->events->create($data);
+                $event = $this->events->create($data);
+                $event->days()->create($this->mapDays($selectedDays));
             }
 
             DB::commit();
 
         } catch (Throwable $err) {
+            info($err->getMessage());
             return response()->json(
                 [
                     'code' => Response::HTTP_BAD_REQUEST,
@@ -80,15 +84,30 @@ class EventController extends Controller
             [
                 'code' => Response::HTTP_OK,
                 'status' => 'success',
-                'message' => __('response.success.action', ['item' => 'Event', 'action' => 'saved'])
+                'message' => __('response.success.action', ['item' => 'Event', 'action' => 'saved']),
+                'data' =>  $event->with('days')->get()
             ],
             Response::HTTP_OK
         );
     }
 
-    private function deleteAndCreateEvent($model, $data)
+    private function deleteAndCreateEvent($model, $data, $days = [])
     {
+        $model->days()->delete();
         $model->delete();
-        $this->events->create($data);
+        $event  = $this->events->create($data);
+        $event->days()->create($this->mapDays($days));
+
+        return $event;
+    }
+
+    private function mapDays($selectedDays)
+    {
+        return collect($selectedDays)->mapWithKeys(function($day) {
+            $dayIndex = strtolower($day);
+            return [
+                $dayIndex => 1
+            ];
+        })->toArray();
     }
 }

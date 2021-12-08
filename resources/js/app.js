@@ -18,8 +18,11 @@ window.Vue = require('vue');
 
 // const files = require.context('./', true, /\.vue$/i)
 // files.keys().map(key => Vue.component(key.split('/').pop().split('.')[0], files(key).default))
+import Toaster from 'v-toaster';
+import 'v-toaster/dist/v-toaster.css';
 
-Vue.component('event-calendar-component', require('./components/EventCalendarComponent.vue').default);
+Vue.component('event-calendar-component', require('./components/EventCalendarApp.vue').default);
+import store from '../js/store';
 
 /**
  * Next, we will create a fresh Vue application instance and attach it to
@@ -27,6 +30,9 @@ Vue.component('event-calendar-component', require('./components/EventCalendarCom
  * or customize the JavaScript scaffolding to fit your unique needs.
  */
 
+Vue.use(Toaster, {timeout: 5000})
+
 const app = new Vue({
     el: '#app',
+    store
 });

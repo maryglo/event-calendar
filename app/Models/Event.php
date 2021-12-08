@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\EventDays;
 
 class Event extends Model
 {
@@ -14,4 +15,11 @@ class Event extends Model
     protected $fillable = [
         'event_name', 'start_date', 'end_date'
     ];
+
+    protected $dates = ['created_at', 'updated_at', 'start_date', 'end_date'];
+
+    public function days()
+    {
+        return $this->hasOne(EventDays::class);
+    }
 }
